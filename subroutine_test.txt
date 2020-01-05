@@ -1,0 +1,24 @@
+jmp 8   ; メインへ
+inc 4   ; 退避部分2個 + 変数2個の領域を空ける
+
+; 引数2を変数aに代入する
+lod 1 -1
+sto 1 2
+
+; 引数8を変数bに代入する
+lod 1 -2
+sto 1 3
+
+; a * b を実行
+opr mul
+
+; その答えを返す
+ret 1 2
+
+nop
+lit 8
+lit 2
+cal 0 1
+opr wrt
+opr wrl
+end

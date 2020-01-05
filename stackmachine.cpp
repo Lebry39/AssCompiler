@@ -1,19 +1,25 @@
 #include <stdio.h>
+#include <string.h>
 
-#define CODE_N  255
-#define STACK_N  255
-#define MAX_LEVEL  64
+#define CODE_N 255
+#define STACK_N 255
+#define MAX_LEVEL 64
+#define MAX_LINE 64
 
 enum functype {
+    ign,    // ignore
     lod, sto, cal, ret,  // Func, Level, Locate
     lit, inc, jmp, jpc,  // Func, Value
-    opr, end  // opr, oprtype
+    opr,    // opr, oprtype
+    cpy,    // cpy num
+    nop,    // Do nothing
+    end     // End code
 };
 
 enum oprtype {
-    add, sub, mul, div,  // 演算
+    add, sub, mul, div,       // 演算
     eq, neq, ls, lt, gr, gt,  // 条件
-    wrt, wrl  // printf
+    wrt, wrl                  // printf
 };
 
 struct address{
@@ -22,41 +28,114 @@ struct address{
 };
 
 typedef struct inst{
-    functype func;  // 命令
+    functype func;      // 命令
     union{
-        int value;
-        address addr;
-        oprtype opcode;
+        address addr;   // lod, sto, cal, ret で使う
+        int value;      // lit, inc, jmp, jmc で使う
+        oprtype opcode; // add, sub, mul,... 演算、比較で使う
     } u;
 } instraction;
+
+// stdlib を include するとdivの定義が使えなくなるから直書き
+int atoi(char s[]) {
+    int i, n, sign;
+
+    for( i = 0; s[i]==' '; i++ );
+
+    sign = ( s[i] == '-' ) ? -1 : 1;
+    if( s[i] == '-' || s[i] == '+' )
+        i++;
+    for( n = 0; '0' <= s[i] && s[i] <= '9'; i++)
+        n = 10 * n + ( s[i] - '0' );
+    return sign * n;
+}
+
+int is_empty(char c){
+    switch (c) {
+        case ' ':
+        case '\n':
+        case ',':
+        case '\t':
+            return 1;
+        default:
+            break;
+    }
+    return 0;
+}
+
+void dump_stack(int *stack, int sp){
+    int i;
+    printf("--- Dump ---\n");
+    for(i=0; i<sp; i++){
+        printf("%d: %d\n", i, stack[i]);
+    }
+    printf("------------\n");
+}
 
 void execute(instraction *code){
     int stack[STACK_N];
     int disp[MAX_LEVEL];
+
+    instraction ireg;  // 実行する命令
+    int sp = 0;   // スタックポインタ
+    int ip = 0;   // インタラクションポインタ
+
+    int i, lev, ret_val;
+
+    // Initialize
     disp[0] = 0;
+    stack[0] = 0;
 
-    instraction ireg;
-
-    int sp = 0;  // スタックポインタ
-    int ip = 0;  // インタラクションポインタ
-    int lev = 0;  // 実行中部分のレベル
+    printf(">> Execute\n");
 
     while(1){
         if(ip >= CODE_N){
             printf("Error: Too many code.\n");
             return;
         }
+        if(sp >= STACK_N){
+            printf("Error: Stack Over fllow.\n");
+            return;
+        }
+
+        // dump_stack(stack, sp);
+
         ireg = code[ip++];
         switch(ireg.func){
+            case nop:
+                continue;
+            case cpy:
+                for(i=0; i<ireg.u.value; i++){
+                    stack[sp++] = stack[sp-2];
+                }
+                break;
             case lod:
+                // Push
                 stack[sp++] = stack[disp[ireg.u.addr.level] + ireg.u.addr.addr];
                 break;
             case sto:
-                stack[disp[lev] + ireg.u.addr.addr] = stack[--sp];
+                // Pop
+                stack[disp[ireg.u.addr.level] + ireg.u.addr.addr] = stack[--sp];
                 break;
             case cal:
+                // Call
+                lev = ireg.u.addr.level + 1;
+                stack[sp] = disp[lev];  // disp の退避
+                stack[sp+1] = ip;       // 戻り先codeの退避
+                disp[lev] = sp;         // spの退避
+                ip = ireg.u.addr.addr;  // サブルーチンアドレスへ
                 break;
             case ret:
+                // Return
+                ret_val = stack[--sp];  // 戻り値を一時領域へ
+
+                lev = ireg.u.addr.level;
+                sp = disp[lev];         // sp の回復
+                disp[lev] = stack[sp];  // disp の回復
+                ip = stack[sp+1];       // 戻りcodeアドレスへ
+                sp -= ireg.u.addr.addr; // 引数を削除
+
+                stack[sp++] = ret_val;  // 戻り値をpush
                 break;
             case lit:
                 stack[sp++] = ireg.u.value;
@@ -70,53 +149,51 @@ void execute(instraction *code){
             case jpc:
                 if(stack[--sp] != 0){
                     ip = ireg.u.addr.addr;
-                    continue;
                 }
-                break;
+                continue;
 
             case opr:
-                if(ireg.u.opcode == add){  // 演算
-                    stack[sp-2] = stack[sp-2] + stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == sub){
-                    stack[sp-2] = stack[sp-2] - stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == mul){
-                    stack[sp-2] = stack[sp-2] * stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == div){
-                    stack[sp-2] = stack[sp-2] / stack[sp-1];
-                    sp--;
-
-                }else if(ireg.u.opcode == eq){  // 比較
-                    stack[sp-2] = stack[sp-2] == stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == neq){
-                    stack[sp-2] = stack[sp-2] != stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == ls){
-                    stack[sp-2] = stack[sp-2] < stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == lt){
-                    stack[sp-2] = stack[sp-2] <= stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == gr){
-                    stack[sp-2] = stack[sp-2] > stack[sp-1];
-                    sp--;
-                }else if(ireg.u.opcode == gt){
-                    stack[sp-2] = stack[sp-2] >= stack[sp-1];
-                    sp--;
-
-                }else if(ireg.u.opcode == wrt){  // 表示
-                    printf("%d", stack[--sp]);
-                }else if(ireg.u.opcode == wrl){
-                    printf("%d\n", stack[--sp]);
+                switch (ireg.u.opcode) {
+                    case add:
+                        stack[sp-2] = stack[sp-2] + stack[sp-1];
+                        sp--; break;
+                    case sub:
+                        stack[sp-2] = stack[sp-2] - stack[sp-1];
+                        sp--; break;
+                    case mul:
+                        stack[sp-2] = stack[sp-2] * stack[sp-1];
+                        sp--; break;
+                    case div:
+                        stack[sp-2] = stack[sp-2] / stack[sp-1];
+                        sp--; break;
+                    case eq:
+                        stack[sp-2] = stack[sp-2] == stack[sp-1];
+                        sp--; break;
+                    case neq:
+                        stack[sp-2] = stack[sp-2] != stack[sp-1];
+                        sp--; break;
+                    case ls:
+                        stack[sp-2] = stack[sp-2] < stack[sp-1];
+                        sp--; break;
+                    case lt:
+                        stack[sp-2] = stack[sp-2] <= stack[sp-1];
+                        sp--; break;
+                    case gr:
+                        stack[sp-2] = stack[sp-2] > stack[sp-1];
+                        sp--; break;
+                    case gt:
+                        stack[sp-2] = stack[sp-2] <= stack[sp-1];
+                        sp--; break;
+                    case wrt:
+                        printf("%d", stack[--sp]);
+                        break;
+                    case wrl:
+                        printf("\n");
+                        break;
                 }
                 break;
-
             default:
                 return;
-
         }
     }
 }
@@ -132,8 +209,10 @@ void print_code(instraction *code){
         }
         ireg = code[ip++];
 
-        printf("%4d: ", ip);
+        printf("%4d: ", ip-1);
         switch(ireg.func){
+            case cpy: printf("cpy"); break;
+            case nop: printf("nop"); break;
             case lod: printf("lod"); break;
             case sto: printf("sto"); break;
             case cal: printf("cal"); break;
@@ -151,59 +230,248 @@ void print_code(instraction *code){
         printf(", ");
 
         if(ireg.func != opr){
-            if(ireg.func == sto){
-                printf("%d, %d", ireg.u.addr.level, ireg.u.addr.addr);
-            }else{
-                printf("%d", ireg.u.value);
+            switch (ireg.func) {
+                case lod:
+                case sto:
+                case cal:
+                case ret:
+                    printf("%d, %d", ireg.u.addr.level, ireg.u.addr.addr);
+                    break;
+                case jpc:
+                case jmp:
+                    printf("%d", ireg.u.addr.addr);
+                    break;
+                case lit:
+                case inc:
+                case cpy:
+                    printf("%d", ireg.u.value);
+                    break;
+                case nop:
+                default:
+                    break;
             }
+
         }else{
-            if(ireg.u.opcode == add){       // 演算
-                printf("add");
-            }else if(ireg.u.opcode == sub){
-                printf("sub");
-            }else if(ireg.u.opcode == mul){
-                printf("mul");
-            }else if(ireg.u.opcode == div){
-                printf("div");
-            }else if(ireg.u.opcode == eq){  // 比較
-                printf(" eq");
-            }else if(ireg.u.opcode == neq){
-                printf("neq");
-            }else if(ireg.u.opcode == ls){
-                printf(" ls");
-            }else if(ireg.u.opcode == lt){
-                printf(" lt");
-            }else if(ireg.u.opcode == gr){
-                printf(" gr");
-            }else if(ireg.u.opcode == gt){
-                printf(" gt");
-            }else if(ireg.u.opcode == wrt){  // 表示
-                printf("wrt");
-            }else if(ireg.u.opcode == wrl){
-                printf("wrl");
+            switch (ireg.u.opcode) {
+                case add :
+                    printf("add"); break;
+                case sub :
+                    printf("sub"); break;
+                case mul :
+                    printf("mul"); break;
+                case div :
+                    printf("div"); break;
+                case eq :
+                    printf("eq");  break;
+                case neq :
+                    printf("neq"); break;
+                case ls :
+                    printf("ls");  break;
+                case lt :
+                    printf("lt");  break;
+                case gr :
+                    printf("gr");  break;
+                case gt :
+                    printf("gt");  break;
+                case wrt :
+                    printf("wrt"); break;
+                case wrl :
+                    printf("wrl"); break;
             }
         }
         printf("\n");
     }
 }
 
-int main() {
+instraction gen_line(char *line){
+    instraction inst;
+    int lp = 0;
+    int i;
+    char func[4];
+    char a[MAX_LINE];
+    char b[MAX_LINE];
+
+    a[0] = '\0';
+    b[0] = '\0';
+
+    // line = "func, a, b"
+
+    // 空白を捨てる
+    while(is_empty(line[lp])) lp++;
+
+    // 何もない行及びコメントのための";"を無視する
+    if(line[lp] == '\0' || line[lp] == ';'){
+        inst.func = ign;
+        return inst;
+    }
+
+    // funcを読み取る
+    func[0] = line[lp++];
+    func[1] = line[lp++];
+    func[2] = line[lp++];
+    func[3] = '\0';
+
+    while(is_empty(line[lp])) lp++;  // 空白を捨てる
+
+    // カンマか空白、終端文字、改行文字まで捨てる
+    i = 0;
+    while(1){
+        if(is_empty(line[lp]) || line[lp] == '\0')
+            break;
+        a[i++] = line[lp++];
+    }
+    a[i++] = '\0';
+    lp++;
+
+    // 次の文字が終端文字じゃないときbがある可能性がある
+    i = 0;
+    if(line[lp] != '\0'){
+        while(is_empty(line[lp])) lp++;  // 空白を捨てる
+
+        // bがあった
+        if(line[lp] != '\0'){
+            while(1){
+                if(is_empty(line[lp]) || line[lp] == '\0')
+                    break;
+                b[i++] = line[lp++];
+            }
+            b[i++] = '\0';
+        }
+    }
+
+    if(strcmp("lod", func) == 0){
+        inst.func = lod;
+    }else if(strcmp("sto", func) == 0){
+        inst.func = sto;
+    }else if(strcmp("cal", func) == 0){
+        inst.func = cal;
+    }else if(strcmp("ret", func) == 0){
+        inst.func = ret;
+    }else if(strcmp("lit", func) == 0){
+        inst.func = lit;
+    }else if(strcmp("inc", func) == 0){
+        inst.func = inc;
+    }else if(strcmp("jmp", func) == 0){
+        inst.func = jmp;
+    }else if(strcmp("jpc", func) == 0){
+        inst.func = jpc;
+    }else if(strcmp("opr", func) == 0){
+        inst.func = opr;
+    }else if(strcmp("cpy", func) == 0){
+        inst.func = cpy;
+    }else if(strcmp("nop", func) == 0){
+        inst.func = nop;
+        return inst;
+    }else{
+        inst.func = end;
+        return inst;
+    }
+
+    // 演算
+    if(inst.func == opr){
+        if(strcmp("add", a) == 0){
+            inst.u.opcode = add;
+        }else if(strcmp("sub", a) == 0){
+            inst.u.opcode = sub;
+        }else if(strcmp("mul", a) == 0){
+            inst.u.opcode = mul;
+        }else if(strcmp("div", a) == 0){
+            inst.u.opcode = div;
+        }else if(strcmp("eq", a) == 0){
+            inst.u.opcode = eq;
+        }else if(strcmp("neq", a) == 0){
+            inst.u.opcode = neq;
+        }else if(strcmp("ls", a) == 0){
+            inst.u.opcode = ls;
+        }else if(strcmp("lt", a) == 0){
+            inst.u.opcode = lt;
+        }else if(strcmp("gr", a) == 0){
+            inst.u.opcode = gr;
+        }else if(strcmp("gt", a) == 0){
+            inst.u.opcode = gt;
+        }else if(strcmp("wrt", a) == 0){
+            inst.u.opcode = wrt;
+        }else if(strcmp("wrl", a) == 0){
+            inst.u.opcode = wrl;
+        }else{
+            inst.func = end;
+            return inst;
+        }
+    }else{
+        if(a[0] != '\0'){
+            switch (inst.func) {
+                case lod:
+                case sto:
+                case cal:
+                case ret:
+                    if(b[0] != '\0'){
+                        inst.u.addr.level = atoi(a);
+                        inst.u.addr.addr = atoi(b);
+                    }else{
+                        // Error: expected b
+                        inst.func = end;
+                        return inst;
+                    }
+                    break;
+                case jpc:
+                case jmp:
+                    inst.u.addr.addr = atoi(a);
+                    break;
+                case lit:
+                case inc:
+                case cpy:
+                    inst.u.value = atoi(a);
+                    break;
+                case nop:
+                default:
+                    break;
+            }
+        }else{
+            inst.func = end;
+            return inst;
+        }
+    }
+
+    return inst;
+}
+
+int read_code(char *filename, instraction *code){
+    FILE *fp;
+    char line[MAX_LINE];
+    int i = 0;
+
+    fp = fopen(filename, "r");
+    if(fp == NULL){
+        printf("Not search \"%s\" file.\n", filename);
+        return -1;
+    }
+    while(fgets(line, MAX_LINE, fp) != NULL){
+        code[i] = gen_line(line);
+        if(code[i].func == ign)
+            continue;
+        if(code[i].func == end)
+            break;
+        i++;
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int main(int argc, char const *argv[]) {
     instraction code[CODE_N];
-    // 5 * 3 = 15
+    int i = -1;
+    int is_invalid_code = 0;
 
-    code[0].func = lit;
-    code[0].u.value = 3;
+    if(argc == 1){
+        printf("ERROR: Plz input source's file.\n");
+        return -1;
+    }
 
-    code[1].func = lit;
-    code[1].u.value = 7;
-
-    code[2].func = opr;
-    code[2].u.opcode = mul;
-
-    code[3].func = opr;
-    code[3].u.opcode = wrl;
-
-    code[4].func = end;
+    is_invalid_code = read_code((char*)argv[1], code) == -1;
+    if(is_invalid_code){
+        return -1;  // Error
+    }
 
     print_code(code);
     execute(code);
