@@ -1,16 +1,12 @@
 lit 0
-lit 10 
-
+lit 10
 lod 0 0
-
 cpy 1
+opr wrt
 opr wrl
-
 lit 1
 opr add
-
 cpy 1
 lod 0 1
-
 opr neq
 jpc 3

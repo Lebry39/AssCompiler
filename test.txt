@@ -1,0 +1,133 @@
+; 正解
+; 全て 01
+; 全て 12
+; 0, 13, -2, 13
+
+lit 4
+lit 4
+opr lt
+opr wrt
+lit 3
+lit 4
+opr lt
+opr wrt
+opr wrl
+
+lit 5
+lit 4
+opr le
+opr wrt
+lit 4
+lit 4
+opr le
+opr wrt
+opr wrl
+
+lit 3
+lit 3
+opr gt
+opr wrt
+lit 4
+lit 3
+opr gt
+opr wrt
+opr wrl
+
+lit 3
+lit 4
+opr ge
+opr wrt
+lit 4
+lit 4
+opr ge
+opr wrt
+opr wrl
+
+lit 1
+lit 3
+opr eq
+opr wrt
+lit 1
+lit 1
+opr eq
+opr wrt
+opr wrl
+
+lit 1
+lit 1
+opr neq
+opr wrt
+lit 1
+lit 3
+opr neq
+opr wrt
+opr wrl
+
+opr wrl
+
+lit 4
+lit 8
+opr add
+opr wrt
+opr wrl
+
+lit 15
+lit 3
+opr sub
+opr wrt
+opr wrl
+
+lit 6
+lit 2
+opr mul
+opr wrt
+opr wrl
+
+lit 24
+lit 2
+opr div
+opr wrt
+opr wrl
+
+lit 27
+lit 15
+opr mod
+opr wrt
+opr wrl
+
+lit 3
+lit 2
+opr shl
+opr wrt
+opr wrl
+
+lit 48
+lit 2
+opr shr
+opr wrt
+opr wrl
+
+opr wrl
+
+lit 5
+lit 8
+opr and
+opr wrt
+opr wrl
+
+lit 5
+lit 8
+opr or
+opr wrt
+opr wrl
+
+lit 1
+opr not
+opr wrt
+opr wrl
+
+lit 5
+lit 8
+opr xor
+opr wrt
+opr wrl
