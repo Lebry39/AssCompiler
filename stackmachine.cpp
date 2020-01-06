@@ -20,7 +20,7 @@ enum functype {
 enum oprtype {
     ADD, SUB, MUL, DIV, MOD,        // 演算
     OR, AND, NOT, XOR, SHR, SHL,    // ビット演算
-    EQ, NEQ, LT, LE, GT, GE,        // 条件
+    EQ, NEQ, LT, LE, GT, GE, ODD,   // 条件
     WRT, WRL                        // printf
 };
 
@@ -219,6 +219,9 @@ void execute(instraction *code){
                     case GE:
                         stack[sp-2] = stack[sp-2] >= stack[sp-1];
                         sp--; break;
+                    case ODD:
+                        stack[sp-1] = 0x1 & stack[sp-1];
+                        break;
                     case WRT:
                         printf("%d", stack[--sp]);
                         break;
@@ -289,49 +292,51 @@ void print_code(instraction *code){
         }else{
             switch (ireg.u.opcode) {
                 // 四則演算
-                case ADD :
+                case ADD:
                     printf("add"); break;
-                case SUB :
+                case SUB:
                     printf("sub"); break;
-                case MUL :
+                case MUL:
                     printf("mul"); break;
-                case DIV :
+                case DIV:
                     printf("div"); break;
-                case MOD :
+                case MOD:
                     printf("mod");  break;
 
                 // ビット演算
-                case NOT :
+                case NOT:
                     printf("not");  break;
-                case OR :
+                case OR:
                     printf("or");  break;
-                case AND :
+                case AND:
                     printf("and");  break;
-                case XOR :
+                case XOR:
                     printf("xor");  break;
-                case SHL :
+                case SHL:
                     printf("shl");  break;
-                case SHR :
+                case SHR:
                     printf("shr");  break;
 
                 // 比較
-                case EQ :
+                case EQ:
                     printf("eq");  break;
-                case NEQ :
+                case NEQ:
                     printf("neq"); break;
-                case LT :
+                case LT:
                     printf("lt");  break;
-                case LE :
+                case LE:
                     printf("le");  break;
-                case GT :
+                case GT:
                     printf("gt");  break;
-                case GE :
+                case GE:
                     printf("ge");  break;
+                case ODD:
+                    printf("ODD");  break;
 
                 // 出力
-                case WRT :
+                case WRT:
                     printf("wrt"); break;
-                case WRL :
+                case WRL:
                     printf("wrl"); break;
             }
         }
@@ -460,6 +465,8 @@ instraction line_to_inst(char *line){
             inst.u.opcode = GT;
         }else if(strcmp("GE", a) == 0){
             inst.u.opcode = GE;
+        }else if(strcmp("ODD", a) == 0){
+            inst.u.opcode = ODD;
         }else if(strcmp("WRT", a) == 0){  // 出力
             inst.u.opcode = WRT;
         }else if(strcmp("WRL", a) == 0){

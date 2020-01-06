@@ -3,6 +3,14 @@
 ; 全て 12
 ; 0, 13, -2, 13
 
+lit 6
+opr odd
+opr wrt
+lit 7
+opr odd
+opr wrt
+opr wrl
+
 lit 4
 lit 4
 opr lt
