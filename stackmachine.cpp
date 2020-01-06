@@ -8,12 +8,12 @@
 #define MAX_LINE 64
 
 enum functype {
-    IGN,    // ignore
     LOD, STO, CAL, RET,  // Func, Level, Locate
     LIT, INC, JMP, JPC,  // Func, Value
     OPR,    // OPR, oprtype
     CPY,    // CPY num
     NOP,    // Do nothing
+    IGN,    // ignore
     END     // END code
 };
 
@@ -339,7 +339,7 @@ void print_code(instraction *code){
     }
 }
 
-instraction gen_line(char *line){
+instraction line_to_inst(char *line){
     instraction inst;
     int lp = 0;
     int i;
@@ -518,7 +518,7 @@ int read_code(char *filename, instraction *code){
     }
     while(fgets(line, MAX_LINE, fp) != NULL){
         upper(line);
-        code[i] = gen_line(line);
+        code[i] = line_to_inst(line);  // エラーで inst.func = end が返る
         if(code[i].func == IGN)
             continue;
         if(code[i].func == END)
