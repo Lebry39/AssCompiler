@@ -1,0 +1,24 @@
+xga == 12;
+x != y;
+!x;
+x < y;
+x <= y;
+x > y;
+x >= y;
+x==y || x!=y;
+x==y && x!=y;
+x | y;
+x & y;
+x ^ y;
+~y;
+x + y;
+x - y;
+x * y;
+x / y;
+x % y;
+
+func f(x, y){
+    return x * y;
+}
+
+print(f(10, 5));

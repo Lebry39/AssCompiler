@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
-#define CODE_N 255
-#define STACK_N 255
+#define MAX_CODE 255
+#define MAX_STACK 255
 #define MAX_LEVEL 64
 #define MAX_LINE 64
 
+// 命令の定義
 enum functype {
     LOD, STO, CAL, RET,  // Func, Level, Locate
     LIT, INC, JMP, JPC,  // Func, Value
@@ -14,9 +16,10 @@ enum functype {
     CPY,    // CPY num
     NOP,    // Do nothing
     IGN,    // ignore
-    END     // END code
+    END,    // END code
 };
 
+// オペコードの定義
 enum oprtype {
     ADD, SUB, MUL, DIV, MOD,        // 演算
     OR, AND, NOT, XOR, SHR, SHL,    // ビット演算
@@ -38,6 +41,7 @@ typedef struct inst{
     } u;
 } instraction;
 
+// 文字列を大文字に変換する
 void upper(char *str){
     int i;
     for(i=0; str[i]!='\0'; i++){
@@ -45,25 +49,12 @@ void upper(char *str){
     }
 }
 
-// stdlib を include するとDIVの定義が使えなくなるから直書き
-int atoi(char s[]) {
-    int i, n, sign;
-
-    for( i = 0; s[i]==' '; i++ );
-
-    sign = ( s[i] == '-' ) ? -1 : 1;
-    if( s[i] == '-' || s[i] == '+' )
-        i++;
-    for( n = 0; '0' <= s[i] && s[i] <= '9'; i++)
-        n = 10 * n + ( s[i] - '0' );
-    return sign * n;
-}
-
-int is_empty(char c){
+// 空白、コンマ、改行、タブかどうかを調べる
+int is_blank(char c){
     switch (c) {
         case ' ':
-        case '\n':
         case ',':
+        case '\n':
         case '\t':
             return 1;
         default:
@@ -72,6 +63,7 @@ int is_empty(char c){
     return 0;
 }
 
+// スタックの中身を出力
 void dump_stack(int *stack, int sp){
     int i;
     printf("--- Dump ---\n");
@@ -81,8 +73,9 @@ void dump_stack(int *stack, int sp){
     printf("------------\n");
 }
 
-void execute(instraction *code){
-    int stack[STACK_N];
+// codeを実行する
+void execute_code(instraction *code){
+    int stack[MAX_STACK];
     int disp[MAX_LEVEL];
 
     instraction ireg;  // 実行する命令
@@ -98,11 +91,11 @@ void execute(instraction *code){
     printf(">> Execute\n");
 
     while(1){
-        if(ip >= CODE_N){
+        if(ip >= MAX_CODE){
             printf("Error: Too many code.\n");
             return;
         }
-        if(sp >= STACK_N){
+        if(sp >= MAX_STACK){
             printf("Error: Stack Over fllow.\n");
             return;
         }
@@ -236,12 +229,13 @@ void execute(instraction *code){
     }
 }
 
+// コードを表示する
 void print_code(instraction *code){
     instraction ireg;
     int ip = 0;
 
     while(1){
-        if(ip >= CODE_N){
+        if(ip >= MAX_CODE){
             printf("Error: Too many code.\n");
             return;
         }
@@ -344,6 +338,9 @@ void print_code(instraction *code){
     }
 }
 
+// 1行の文字列を命令に変換する
+// inst = f("lod 1 3")
+// inst.func = lod, inst.u.addr.level = 1, inst.u.addr.addr = 3
 instraction line_to_inst(char *line){
     instraction inst;
     int lp = 0;
@@ -355,10 +352,8 @@ instraction line_to_inst(char *line){
     a[0] = '\0';
     b[0] = '\0';
 
-    // line = "func, a, b"
-
     // 空白を捨てる
-    while(is_empty(line[lp])) lp++;
+    while(is_blank(line[lp])) lp++;
 
     // 何もない行及びコメントのための";"を無視する
     if(line[lp] == '\0' || line[lp] == ';'){
@@ -372,12 +367,12 @@ instraction line_to_inst(char *line){
     func[2] = line[lp++];
     func[3] = '\0';
 
-    while(is_empty(line[lp])) lp++;  // 空白を捨てる
+    while(is_blank(line[lp])) lp++;  // 空白を捨てる
 
     // カンマか空白、終端文字、改行文字まで捨てる
     i = 0;
     while(1){
-        if(is_empty(line[lp]) || line[lp] == '\0')
+        if(is_blank(line[lp]) || line[lp] == '\0')
             break;
         a[i++] = line[lp++];
     }
@@ -387,12 +382,12 @@ instraction line_to_inst(char *line){
     // 次の文字が終端文字じゃないときbがある可能性がある
     i = 0;
     if(line[lp] != '\0'){
-        while(is_empty(line[lp])) lp++;  // 空白を捨てる
+        while(is_blank(line[lp])) lp++;  // 空白を捨てる
 
         // bがあった
         if(line[lp] != '\0'){
             while(1){
-                if(is_empty(line[lp]) || line[lp] == '\0')
+                if(is_blank(line[lp]) || line[lp] == '\0')
                     break;
                 b[i++] = line[lp++];
             }
@@ -429,7 +424,7 @@ instraction line_to_inst(char *line){
         return inst;
     }
 
-    // 演算
+    // オペコード
     if(inst.func == OPR){
         if(strcmp("ADD", a) == 0){      // 四則演算
             inst.u.opcode = ADD;
@@ -472,6 +467,7 @@ instraction line_to_inst(char *line){
         }else if(strcmp("WRL", a) == 0){
             inst.u.opcode = WRL;
         }else{
+            // オペコードが無い
             inst.func = END;
             return inst;
         }
@@ -486,7 +482,7 @@ instraction line_to_inst(char *line){
                         inst.u.addr.level = atoi(a);
                         inst.u.addr.addr = atoi(b);
                     }else{
-                        // Error: expected b
+                        // bが無い
                         inst.func = END;
                         return inst;
                     }
@@ -505,6 +501,7 @@ instraction line_to_inst(char *line){
                     break;
             }
         }else{
+            // aが存在しない
             inst.func = END;
             return inst;
         }
@@ -513,6 +510,7 @@ instraction line_to_inst(char *line){
     return inst;
 }
 
+// スタックマシンの言語で書かれたファイルを引数codeに格納する
 int read_code(char *filename, instraction *code){
     FILE *fp;
     char line[MAX_LINE];
@@ -538,7 +536,7 @@ int read_code(char *filename, instraction *code){
 }
 
 int main(int argc, char const *argv[]) {
-    instraction code[CODE_N];
+    instraction code[MAX_CODE];
     int i = -1;
     int is_invalid_code = 0;
 
@@ -549,11 +547,11 @@ int main(int argc, char const *argv[]) {
 
     is_invalid_code = read_code((char*)argv[1], code) == -1;
     if(is_invalid_code){
-        return -1;  // Error
+        return -1;
     }
 
     print_code(code);
-    execute(code);
+    execute_code(code);
 
     return 0;
 }
