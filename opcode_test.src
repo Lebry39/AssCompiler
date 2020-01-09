@@ -1,12 +1,10 @@
+a = 4;
 xga == 12;
 x != y;
-!x;
 x < y;
 x <= y;
 x > y;
 x >= y;
-x==y || x!=y;
-x==y && x!=y;
 x | y;
 x & y;
 x ^ y;
@@ -17,8 +15,18 @@ x * y;
 x / y;
 x % y;
 
-func f(x, y){
+def f(x, y){
     return x * y;
+}
+
+if(3 == 5){
+    for(i=3; i<5; i+=1){
+    
+    }
+}else{
+    while(1){
+
+    }
 }
 
 print(f(10, 5));

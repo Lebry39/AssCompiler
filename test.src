@@ -1,6 +1,11 @@
-var a = 3;
-var b = 6;
-var y;
+var a, b, y;
+a = 4;
+b = 6;
 
-y = a * b;
-print(y);
+# kansuuteigi
+def mul(i, j){
+    return i * j;
+}
+
+y = mul(a, b);
+println y;
