@@ -1,11 +1,2 @@
-var a, b, y;
-a = 4;
-b = 6;
 
-# kansuuteigi
-def mul(i, j){
-    return i * j;
-}
-
-y = mul(a, b);
-println y;
+println -5 * 2 + (6 - (8 / 4));

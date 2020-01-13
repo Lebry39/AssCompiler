@@ -1,3 +1,10 @@
+#ifndef TYPDEF
+
+#define MAX_CODE 255
+#define MAX_STACK 255
+#define MAX_LEVEL 64
+#define MAX_LINE 64
+
 // 命令の定義
 enum functype {
     LOD, STO, CAL, RET,  // Func, Level, Locate
@@ -29,4 +36,6 @@ typedef struct inst{
         int value;      // LIT, INC, JMP, jmc で使う
         oprtype opcode; // ADD, SUB, MUL,... 演算、比較で使う
     } u;
-} instraction;
+} instruction;
+
+#endif

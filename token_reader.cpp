@@ -2,109 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "typedefine.h"
-
-#define MAX_TOKEN 64
-#define MAX_LINE 64
+#include "token_reader.hpp"
+#include "typedefine.hpp"
 
 /*
     Number:
     Ident:
     opcode:
 */
-typedef enum tokenkind {
-    number,   // [0-9]{[0-9]}
-    ident,    // [a-zA-Z]{[a-zA-Z0-9]}
-    keyword,  // identの中も予約されている
-    opcode,   // 演算子など、opcodeにoprtypeを格納する
-    symbol,   // カンマ, 括弧など
-    eof       // End of file
-} tokenkind;
-
-typedef enum opcodekind {
-    assign,  // =
-    equal,   // ==
-    grt,     // >
-    les,     // <
-    not_equal,  // !=
-    grt_equal,  // >=
-    les_equal,  // <=
-
-    calc_add,  // "+"
-    calc_sub,  // "-"
-    calc_mul,  // "*"
-    calc_div,  // "/"
-    calc_mod,  // "%"
-
-    bit_and,  // "&"
-    bit_or,   // "|"
-    bit_not,  // "~"
-    bit_xor,  // "^"
-    bit_shl,  // "<<"
-    bit_shr   // ">>"
-} opcodekind;
-
-typedef enum keywordkind {
-    stmt_if,        // "if"
-    stmt_else,      // "else"
-    stmt_while,     // "while"
-    stmt_for,       // "for"
-    stmt_print,     // "print"
-    stmt_return,    // "return"
-    stmt_println,   // "println"
-    def_function,   // "def"
-    dcl_variable    // "var"
-} keywordkind;
-
-class TokenReader{
-public:
-    // 出力
-    char token[MAX_TOKEN];
-    tokenkind token_kind;
-
-    keywordkind keyword_kind;  // token_kind is keyword
-    opcodekind opcode_kind;    // token_kind is opcode
-
-    // 文字読み取り用
-    char current_line[MAX_LINE];
-    char next_char;
-    int line_index;
-
-    TokenReader(){
-        line_index = -1;
-        is_opened_file = 0;
-    }
-    ~TokenReader(){
-        close_src();
-    }
-
-    void open_src(char *filename){
-        fp = fopen(filename, "r");
-        if(fp == NULL){
-            std::cout << "File not found." << std::endl;
-            exit(0);
-        }else{
-            is_opened_file = 1;
-        }
-
-        // 先読みをしておく
-        forward_char();
-    }
-    void close_src(){
-        fclose(fp);
-    }
-
-    keywordkind get_keyword_kind(char *);
-    int is_ident(char);
-    int is_number(char);
-    int is_opcode(char);
-    void forward_char();
-    void next_token();
-
-private:
-    int is_opened_file;
-    FILE *fp;
-};
 
 // 次の文字列に進め、その文字を next_char に格納
 void TokenReader::forward_char(){
@@ -285,7 +190,11 @@ void TokenReader::next_token(){
                 break;
         }
     }else{  // Symbol
-        token_kind = symbol;
+        if(next_char == ';'){
+            token_kind = semicolon;
+        }else{
+            token_kind = symbol;
+        }
         token[i++] = next_char;
         forward_char();
     }
@@ -378,36 +287,36 @@ void print_opcode_kind(opcodekind opcode){
     }
 }
 
-int main(int argc, char const *argv[]) {
-    if(argc == 1){
-        printf("ERROR: Plz input source's file.\n");
-        return -1;
-    }
-
-    char c;
-    TokenReader tr;
-
-    tr.open_src((char *)argv[1]);
-
-    while(true){
-        tr.next_token();
-        if(tr.token_kind != eof){
-            printf("%s  ", tr.token);
-            print_token_kind(tr.token_kind);
-            if(tr.token_kind == opcode){
-                printf(" ");
-                print_opcode_kind(tr.opcode_kind);
-            }else if(tr.token_kind == keyword){
-                printf(" ");
-                print_keyword_kind(tr.keyword_kind);
-            }
-            printf("\n");
-        }else{
-            printf("[EOF]\n");
-            break;
-        }
-    }
-
-    tr.close_src();
-    return 0;
-}
+// int main(int argc, char const *argv[]) {
+//     if(argc == 1){
+//         printf("ERROR: Plz input source's file.\n");
+//         return -1;
+//     }
+//
+//     char c;
+//     TokenReader tr;
+//
+//     tr.open_src((char *)argv[1]);
+//
+//     while(true){
+//         tr.next_token();
+//         if(tr.token_kind != eof){
+//             printf("%s  ", tr.token);
+//             print_token_kind(tr.token_kind);
+//             if(tr.token_kind == opcode){
+//                 printf(" ");
+//                 print_opcode_kind(tr.opcode_kind);
+//             }else if(tr.token_kind == keyword){
+//                 printf(" ");
+//                 print_keyword_kind(tr.keyword_kind);
+//             }
+//             printf("\n");
+//         }else{
+//             printf("[EOF]\n");
+//             break;
+//         }
+//     }
+//
+//     tr.close_src();
+//     return 0;
+// }

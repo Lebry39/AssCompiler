@@ -3,13 +3,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "typedefine.h"
-#include "stackmachine.h"
-
-#define MAX_CODE 255
-#define MAX_STACK 255
-#define MAX_LEVEL 64
-#define MAX_LINE 64
+#include "typedefine.hpp"
+#include "stackmachine.hpp"
 
 
 // 文字列を大文字に変換する
@@ -45,11 +40,11 @@ void dump_stack(int *stack, int sp){
 }
 
 // codeを実行する
-void execute_code(instraction *code){
+void execute_code(instruction *code){
     int stack[MAX_STACK];
     int disp[MAX_LEVEL];
 
-    instraction ireg;  // 実行する命令
+    instruction ireg;  // 実行する命令
     int sp = 0;   // スタックポインタ
     int ip = 0;   // インタラクションポインタ
 
@@ -201,8 +196,8 @@ void execute_code(instraction *code){
 }
 
 // コードを表示する
-void print_code(instraction *code){
-    instraction ireg;
+void print_code(instruction *code){
+    instruction ireg;
     int ip = 0;
 
     while(1){
@@ -312,8 +307,8 @@ void print_code(instraction *code){
 // 1行の文字列を命令に変換する
 // inst = f("lod 1 3")
 // inst.func = lod, inst.u.addr.level = 1, inst.u.addr.addr = 3
-instraction line_to_inst(char *line){
-    instraction inst;
+instruction line_to_inst(char *line){
+    instruction inst;
     int lp = 0;
     int i;
     char func[4];
@@ -482,7 +477,7 @@ instraction line_to_inst(char *line){
 }
 
 // スタックマシンの言語で書かれたファイルを引数codeに格納する
-int read_code(char *filename, instraction *code){
+int read_code(char *filename, instruction *code){
     FILE *fp;
     char line[MAX_LINE];
     int i = 0;
@@ -506,23 +501,23 @@ int read_code(char *filename, instraction *code){
     return 0;
 }
 
-int main(int argc, char const *argv[]) {
-    instraction code[MAX_CODE];
-    int i = -1;
-    int is_invalid_code = 0;
-
-    if(argc == 1){
-        printf("ERROR: Plz input source's file.\n");
-        return -1;
-    }
-
-    is_invalid_code = read_code((char*)argv[1], code) == -1;
-    if(is_invalid_code){
-        return -1;
-    }
-
-    print_code(code);
-    execute_code(code);
-
-    return 0;
-}
+// int main(int argc, char const *argv[]) {
+//     instruction code[MAX_CODE];
+//     int i = -1;
+//     int is_invalid_code = 0;
+//
+//     if(argc == 1){
+//         printf("ERROR: Plz input source's file.\n");
+//         return -1;
+//     }
+//
+//     is_invalid_code = read_code((char*)argv[1], code) == -1;
+//     if(is_invalid_code){
+//         return -1;
+//     }
+//
+//     print_code(code);
+//     execute_code(code);
+//
+//     return 0;
+// }
