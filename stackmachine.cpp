@@ -32,11 +32,11 @@ int is_blank(char c){
 // スタックの中身を出力
 void dump_stack(int *stack, int sp){
     int i;
-    printf("--- Dump ---\n");
+    printf("--- Stack Dump ---\n");
     for(i=0; i<sp; i++){
         printf("%d: %d\n", i, stack[i]);
     }
-    printf("------------\n");
+    printf("----------------\n");
 }
 
 // codeを実行する
@@ -65,8 +65,6 @@ void execute_code(instruction *code){
             printf("Error: Stack Over fllow.\n");
             return;
         }
-
-        // dump_stack(stack, sp);
 
         ireg = code[ip++];
         switch(ireg.func){
@@ -133,9 +131,17 @@ void execute_code(instruction *code){
                         stack[sp-2] = stack[sp-2] * stack[sp-1];
                         sp--; break;
                     case DIV:
+                        if(stack[sp-1] == 0){
+                            printf("Error: Dived by Zero!!\n");
+                            exit(1);
+                        }
                         stack[sp-2] = stack[sp-2] / stack[sp-1];
                         sp--; break;
                     case MOD:
+                        if(stack[sp-1] == 0){
+                            printf("Error: Dived by Zero!!\n");
+                            exit(1);
+                        }
                         stack[sp-2] = stack[sp-2] % stack[sp-1];
                         sp--; break;
 
@@ -190,6 +196,7 @@ void execute_code(instruction *code){
                 }
                 break;
             default:
+                dump_stack(stack, sp);
                 return;
         }
     }

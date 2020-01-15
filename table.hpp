@@ -81,6 +81,7 @@ public:
         last_buffer[level] = HASH_SIZE;
         for(idx=0; idx<MAX_HASH; idx++){
             hash_map[level][idx].kind = undefined;
+            hash_map[level][idx].next_index = -1;
         }
     }
 };

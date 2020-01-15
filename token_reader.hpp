@@ -14,26 +14,29 @@ typedef enum tokenkind {
 } tokenkind;
 
 typedef enum opcodekind {
-    assign,  // =
-    equal,   // ==
-    grt,     // >
-    les,     // <
-    not_equal,  // !=
-    grt_equal,  // >=
-    les_equal,  // <=
-
-    calc_add,  // "+"
-    calc_sub,  // "-"
-    calc_mul,  // "*"
-    calc_div,  // "/"
-    calc_mod,  // "%"
-
-    bit_and,  // "&"
-    bit_or,   // "|"
-    bit_not,  // "~"
-    bit_xor,  // "^"
-    bit_shl,  // "<<"
-    bit_shr   // ">>"
+    /* Low Priority */
+    assign,     // "="
+    equal,      // "=="
+    not_equal,  // "!="
+    grt,        // ">"
+    les,        // "<"
+    grt_equal,  // ">="
+    les_equal,  // "<="
+    logic_and,  // "&&"
+    logic_or,   // "||"
+    logic_not,  // "!"
+    bit_or,     // "|"
+    bit_xor,    // "^"
+    bit_and,    // "&"
+    bit_shl,    // "<<"
+    bit_shr,    // ">>"
+    calc_add,   // "+"
+    calc_sub,   // "-"
+    calc_mul,   // "*"
+    calc_div,   // "/"
+    calc_mod,   // "%"
+    bit_not     // "~"
+    /* Top Priority */
 } opcodekind;
 
 typedef enum keywordkind {

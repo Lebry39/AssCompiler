@@ -64,14 +64,14 @@ int TokenReader::is_ident(char c){
 int TokenReader::is_opcode(char c){
     switch (c) {
         case '=':  // "=" or "=="
-        case '!':  // "!="  ※ "!" は使えない
+        case '!':  // "!=" or "!"
         case '+':
         case '-':
         case '*':
         case '/':
         case '%':
-        case '|':  // "|"   ※ "||" は使えない
-        case '&':  // "&"   ※ "&&" は使えない
+        case '|':  // "|" or "||"
+        case '&':  // "&" or "&&"
         case '~':
         case '^':
         case '<':  // "<<", "<" or "<="
@@ -144,20 +144,34 @@ void TokenReader::next_token(){
             case '%':
                 opcode_kind = calc_mod; break;
             case '|':
-                opcode_kind = bit_or; break;
-            case '&':
-                opcode_kind = bit_and; break;
+                if(next_char == '|'){
+                    opcode_kind = logic_or;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = bit_or;
+                }
+                break;
+            case '&':  // "&" or "&&"
+                if(next_char == '&'){
+                    opcode_kind = logic_and;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = bit_and;
+                }
+                break;
             case '~':
                 opcode_kind = bit_not; break;
             case '^':
                 opcode_kind = bit_xor; break;
-            case '!':  // "!="
-                if(next_char == '='){
+            case '!':
+                if(next_char == '='){  // "!="
                     opcode_kind = not_equal;
                     token[i++] = next_char;
                     forward_char();
-                }else{
-                    i = 0;  // error
+                }else{  // "!"
+                    opcode_kind = logic_not;
                 }
                 break;
             case '=':  // "=" or "=="
@@ -219,6 +233,8 @@ void print_token_kind(tokenkind token){
             printf("opcode"); break;
         case symbol:
             printf("symbol"); break;
+        case semicolon:
+            printf("semicolon"); break;
         case eof:
             printf("eof"); break;
     }
@@ -272,6 +288,12 @@ void print_opcode_kind(opcodekind opcode){
             printf("calc_div"); break;
         case calc_mod:
             printf("calc_mod"); break;
+        case logic_or:
+            printf("logic_or"); break;
+        case logic_and:
+            printf("logic_and"); break;
+        case logic_not:
+            printf("logic_not"); break;
         case bit_and:
             printf("bit_and"); break;
         case bit_or:

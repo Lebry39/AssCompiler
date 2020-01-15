@@ -16,16 +16,33 @@ unsigned int SymbolTable::hash(char *name){
 
 void SymbolTable::modify(def_recode *recode){
     unsigned int i, index;
+    unsigned int search_level;
     def_recode *target;
 
+    search_level = level;
+
     index = hash(recode->name);
-    target = &hash_map[level][index];
-    if(target->kind != undefined){
-        *target = *recode;  // 修正
+    target = &hash_map[search_level][index];
+    if(strcmp(target->name, recode->name) == 0){  // 見つけた
+        *target = *recode;
+        return;
     }else{
-        printf("Error: '%s' is not found!!\n", recode->name);
-        exit(1);
+        // 連結リストをたどる
+        while(search_level > 0){
+            search_level--;
+            while(target->next_index != -1){
+                target = &hash_map[search_level][target->next_index];
+                if(strcmp(target->name, recode->name) == 0){  // 見つけた
+                    *target = *recode;
+                    return;
+                }
+            }
+        }
     }
+
+    // なかった
+    printf("\nERROR: '%s' is not defined!! \n", recode->name);
+    exit(1);
 }
 
 void SymbolTable::put(def_recode *recode){
@@ -82,7 +99,8 @@ def_recode SymbolTable::take(char *str){
         return target;
     }else{
         // 連結リストをたどる
-        for(; search_level >= 0; search_level--){
+        while(search_level > 0){
+            search_level--;
             while(target.next_index != -1){
                 target = hash_map[search_level][target.next_index];
                 if(strcmp(target.name, str) == 0)  // 見つけた
@@ -92,6 +110,6 @@ def_recode SymbolTable::take(char *str){
     }
 
     // なかった
-    printf("ERROR: '%s' is Not found!! \n", str);
+    printf("\nERROR: '%s' is not defined!! \n", str);
     exit(1);
 }

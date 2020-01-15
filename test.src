@@ -1,2 +1,10 @@
+var a, b, c = 2 * 4;
 
-println -5 * 2 + (6 - (8 / 4));
+a = 0;
+a = a + 1;
+a = a + 1;
+a = a + 1;
+a = a + 1;
+a = a + 1;
+
+println a;
