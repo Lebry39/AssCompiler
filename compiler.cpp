@@ -38,7 +38,7 @@ void gen_variable(){
     def_recode recode;
     int n = 0;
 
-    printf("VARIABLE:");
+    printf("VARIABLE: ");
     while(1){
         tr.next_token();
 
@@ -63,6 +63,7 @@ void gen_variable(){
             }
 
             printf(" = ");
+            tr.next_token();  // = 演算子を捨てる
             gen_expression();
         }else{
             // 宣言のみ
@@ -149,39 +150,10 @@ void gen_function(){
     printf("}\n");
 }
 
-void gen_assignment(){
-    def_recode recode;
-
-    recode = table.take(tr.token);
-    if(recode.kind == function){
-        printf("Error: '%s' is function, Excepted Variable!!!\n");
-        exit(1);
-    }
-
-    printf("Assign: %s = ", recode.name);
-
-    tr.next_token();
-    if(strcmp(tr.token, "=") != 0){
-        printf("Your need opcode '='\n");
-        exit(1);
-    }
-
-    // 代入する値を計算
-    gen_expression();
-
-    // アドレスへ格納
-    inst.func = STO;
-    inst.u.addr.level = recode.level;
-    inst.u.addr.addr = recode.addr;
-    code[code_index++] = inst;
-
-    printf("\n");
-    check_semicolon();
-}
-
 void gen_reserved_statement(){
     if(tr.keyword_kind == stmt_print){
         printf("Print: ");
+        tr.next_token();
         gen_expression();
         inst.func = OPR;
         inst.u.opcode = WRT;
@@ -189,6 +161,7 @@ void gen_reserved_statement(){
         printf("\n");
     }else if(tr.keyword_kind == stmt_println){
         printf("Print-ln: ");
+        tr.next_token();
         gen_expression();
         inst.func = OPR;
         inst.u.opcode = WRT;
@@ -199,6 +172,7 @@ void gen_reserved_statement(){
         printf("\n");
     }else if(tr.keyword_kind == stmt_return){
         printf(" RETURN: ");
+        tr.next_token();
         gen_expression();
     }
 }
@@ -216,11 +190,10 @@ void gen_expression(){
     int is_opr_excepted = 0;
 
     while (1) {
-        tr.next_token();
-
         if(tr.token_kind == semicolon) break;
 
-        if(tr.token_kind == opcode){  // 演算子
+        // Generate Opcode
+        if(tr.token_kind == opcode){
             if(!is_opr_excepted){  // 一番初めは + か - か ~ か !
                 if(tr.opcode_kind == bit_not){
                     // pass
@@ -234,7 +207,7 @@ void gen_expression(){
                 }else if(tr.opcode_kind == calc_add){
                     continue;  // Ignore add opcode
                 }else{
-                    printf("[%s, %d!=%d]\nError: operand Excepted\n", tr.token, tr.opcode_kind, calc_sub);
+                    printf("[%s]\nError: operand Excepted\n", tr.token);
                     exit(1);
                 }
             }
@@ -246,8 +219,15 @@ void gen_expression(){
             }
 
             // 演算子をプッシュ
-
             switch (tr.opcode_kind) {
+                case assign:
+                    inst = code[--code_index];
+                    if(inst.func != LOD){
+                        printf("Error: Variable Excepted!!\n");
+                        exit(1);
+                    }
+                    inst.func = STO;
+                    break;
                 case calc_add:
                     inst.func = OPR; inst.u.opcode = ADD; break;
                 case calc_sub:
@@ -301,14 +281,16 @@ void gen_expression(){
             is_opr_excepted = 0;
             printf("%s ", tr.token);
 
+            tr.next_token();
             continue;  // 次のトークンへ
         }else if(is_opr_excepted && (strcmp(tr.token, ")") != 0)){
             break;
         }
 
-        if(tr.token_kind == ident){ // 関数 or 変数
+        // Generate Operand
+        if(tr.token_kind == ident){
             recode = table.take(tr.token);
-            if(recode.kind == function){
+            if(recode.kind == function){  // 関数呼び出し
                 printf("[F]");
                 while(1){
                     if(strcmp(tr.token, ")") == 0)
@@ -317,7 +299,7 @@ void gen_expression(){
                         tr.next_token();
                 }
                 is_opr_excepted = 1;
-            }else if(recode.kind == variable){
+            }else if(recode.kind == variable){  // 変数
                 inst.func = LOD;
                 inst.u.addr.level = recode.level;
                 inst.u.addr.addr = recode.addr;
@@ -339,6 +321,7 @@ void gen_expression(){
         }
 
         printf("%s ", tr.token);
+        tr.next_token();
     }
 
     // 残った演算子をすべてポップ
@@ -352,13 +335,11 @@ void gen_statement(){
         gen_variable();
     }else if(strcmp(tr.token, "def") == 0){  // 関数宣言
         gen_function();
-    }else if(tr.token_kind == ident){  // 代入式
-        gen_assignment();
     }else if(tr.token_kind == keyword){  // 予約式
         gen_reserved_statement();
     }else{
-        printf("%s\nError: Invalid Syntax!!\n", tr.current_line);
-        exit(1);
+        gen_expression();
+        printf("\n");
     }
 }
 
@@ -380,7 +361,7 @@ int main(int argc, char const *argv[]) {
 
     execute_code(code);
 
-    printf("\n");
+
     table.dump();
 
     return 0;

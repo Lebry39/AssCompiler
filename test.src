@@ -1,10 +1,5 @@
-var a, b, c = 2 * 4;
+var a = 3;
 
-a = 0;
-a = a + 1;
-a = a + 1;
-a = a + 1;
-a = a + 1;
-a = a + 1;
+a = a + 4;
 
 println a;
