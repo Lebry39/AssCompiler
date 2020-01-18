@@ -13,11 +13,17 @@ TokenReader tr;
 // 生成したコードを格納する
 instruction inst;
 instruction code[MAX_CODE];
-int code_index = 0;
-int code_sp = 0;
+unsigned int code_index = 0;
+unsigned int code_sp = 0;
 
 // 宣言した変数の管理
 int stack_top = 0;
+
+/*  elseif chain を繋いでいたか
+    繋いでいると、先読みされている状態となるので
+    次のtr.next_token()は実行してはいけない
+*/
+int was_if_stmt = 0;
 
 void gen_statement();
 void gen_variable();
@@ -25,6 +31,17 @@ void gen_function();
 void gen_assignment();
 void gen_reserved_statement();
 void gen_expression();
+void gen_condition();
+void gen_block();
+
+
+void assert(char *str){
+    if(strcmp(str, tr.token) != 0){
+        printf("I hate '%s'\n", tr.token);
+        printf("\nError: Expected '%s'!!!", str);
+        exit(1);
+    }
+}
 
 void check_semicolon(){
     // 1文はセミコロンで終わる必要がある
@@ -63,7 +80,7 @@ void gen_variable(){
             }
 
             printf(" = ");
-            tr.next_token();  // = 演算子を捨てる
+            tr.next_token();  // "="を捨てる
             gen_expression();
         }else{
             // 宣言のみ
@@ -95,7 +112,14 @@ void gen_variable(){
 void gen_function(){
     def_recode func_recode;
     def_recode recode;
+    char arg_names[HASH_SIZE][MAX_NAME];
     int argc = 0;
+    int jmp_inst_index = code_index++;
+
+    // 関数定義部分で実行されないように、ブロックの最後までジャンプ
+    inst.func = JMP;
+    inst.u.addr.addr = -1;
+    code[jmp_inst_index] = inst;
 
     printf("FUNCTION: ");
 
@@ -104,17 +128,20 @@ void gen_function(){
         printf("%s", tr.token);
         strcpy(func_recode.name, tr.token);
         func_recode.kind = function;
+        func_recode.addr = code_index;
+        table.put(&func_recode);
     }else{
         printf("Error: '%s' is Invalid function name.\n", tr.token);
         exit(1);
     }
 
-    printf("{\n");
-
     table.in_block();
 
     // 引数
-    printf(" ARGUMENTS:");
+    printf("\n ARGUMENTS:");
+    tr.next_token();
+    assert((char *)"(");
+
     while (1) {
         tr.next_token();
         if(strcmp(tr.token, ")") == 0) break;
@@ -123,31 +150,60 @@ void gen_function(){
         if(tr.token_kind == ident){
             printf(" %s", tr.token);
             strcpy(recode.name, tr.token);
+            strcpy(arg_names[argc], tr.token);
             recode.kind = variable;
             table.put(&recode);
             argc++;
         }
     }
-    func_recode.argc = argc;
-    table.put(&func_recode);
+
+    // 引数がargc個ある関数の、i番目の引数の相対アドレスを登録する
+    for(int i=0; i<argc; i++){
+        recode = table.take(arg_names[i]);
+        recode.addr = i - argc;
+        table.modify(&recode);
+    }
     printf("\n");  // 引数ここまで
 
+    // 関数の引数を登録する
+    func_recode.argc = argc;
+    table.modify(&func_recode);
+
+    // 返りアドレス、ディスプレイ回復の領域を確保
+    inst.func = INC;
+    inst.u.value = 2;
+    stack_top += 1;
+    code[code_index++] = inst;
+
+    // { statements; }
     tr.next_token();
-    if(strcmp(tr.token, "{") != 0){
-        printf("Error: Invalid Syntax !!\n");
-        exit(1);
+    gen_block();
+
+    printf(" RETURN: ");
+    if(tr.keyword_kind == stmt_return){
+        // 戻り値あり
+        tr.next_token();
+        gen_expression();
+    }else{
+        // 戻り値なし
+        inst.func = LIT;
+        inst.u.value = 0;
+        code[code_index++] = inst;
     }
 
-    // {statement}
-    while (1) {
-        tr.next_token();
-        if(strcmp(tr.token, "}") == 0) break;
-        gen_statement();
-    }
-    printf("\n");
+    // サブルーチンを抜ける
+    inst.func = RET;
+    inst.u.addr.level = table.get_level();
+    inst.u.addr.addr = argc;
+    code[code_index++] = inst;
 
     table.out_block();
-    printf("}\n");
+
+    // 定義を飛ばす
+    code[jmp_inst_index].u.addr.addr = code_index;
+    stack_top -= 1;
+    printf("\n");
+
 }
 
 void gen_reserved_statement(){
@@ -170,10 +226,87 @@ void gen_reserved_statement(){
         inst.u.opcode = WRL;
         code[code_index++] = inst;
         printf("\n");
-    }else if(tr.keyword_kind == stmt_return){
-        printf(" RETURN: ");
+    }else if(tr.keyword_kind == stmt_if){
+        unsigned int else_inst_index;
+        unsigned int out_of_if_chain_index;
+
+        printf("IF: ");
         tr.next_token();
-        gen_expression();
+        gen_condition();
+
+        // Trueの時、blockへジャンプ
+        inst.func = JPC;
+        inst.u.addr.addr = code_index + 2;
+        code[code_index++] = inst;
+
+        // falseの時、blockの外(アドレス未定)にジャンプ
+        else_inst_index = code_index++;
+        inst.func = JMP;
+        code[else_inst_index] = inst;
+
+        tr.next_token();
+        gen_block();
+
+        // Nop を挟む
+        inst.func = NOP;
+        out_of_if_chain_index = code_index++;
+        code[out_of_if_chain_index] = inst;
+
+        // false時のジャンプアドレスを NOP へ設定する
+        code[else_inst_index].u.addr.addr = code_index-1;
+
+        tr.next_token();
+        if(tr.token_kind == keyword && tr.keyword_kind == stmt_else){
+            printf("Else: ");
+            code[else_inst_index].u.addr.addr = code_index;
+
+            tr.next_token();
+            if(strcmp(tr.token, "{") == 0){
+                gen_block();
+            }else if(tr.token_kind == keyword && tr.keyword_kind == stmt_if){
+                gen_reserved_statement();
+            }else{
+                printf("Error: Excepted '{' or 'if'\n");
+                exit(1);
+            }
+
+            // 成功時のジャンプアドレスを設定
+            inst.func = JMP;
+            inst.u.addr.addr = code_index;
+            code[out_of_if_chain_index] = inst;
+        }
+    }else if(tr.keyword_kind == stmt_while){
+        unsigned int jmp_inst_index;
+        unsigned int condition_index = code_index;
+
+        printf("WHILE: ");
+        tr.next_token();
+        gen_condition();
+
+        // Trueの時、blockへジャンプ
+        inst.func = JPC;
+        inst.u.addr.addr = code_index + 2;
+        code[code_index++] = inst;
+
+        // falseの時、blockの外(アドレス未定)にジャンプ
+        jmp_inst_index = code_index++;
+        inst.func = JMP;
+        code[jmp_inst_index] = inst;
+
+        tr.next_token();
+        gen_block();
+
+        // ループ条件へ戻る
+        inst.func = JMP;
+        inst.u.addr.addr = condition_index;
+        code[code_index++] = inst;
+
+        // false時のジャンプアドレスを code_index に設定する
+        code[jmp_inst_index].u.addr.addr = code_index;
+
+    }else{
+        printf("Sorry!! '%s' is not yet supported !!\n", tr.token);
+        exit(1);
     }
 }
 
@@ -221,6 +354,7 @@ void gen_expression(){
             // 演算子をプッシュ
             switch (tr.opcode_kind) {
                 case assign:
+                    // "変数をload" を、"変数にwrite" に書き換える
                     inst = code[--code_index];
                     if(inst.func != LOD){
                         printf("Error: Variable Excepted!!\n");
@@ -283,7 +417,7 @@ void gen_expression(){
 
             tr.next_token();
             continue;  // 次のトークンへ
-        }else if(is_opr_excepted && (strcmp(tr.token, ")") != 0)){
+        }else if(is_opr_excepted && (strcmp(tr.token, ")") == 0 || strcmp(tr.token, ",") == 0)){
             break;
         }
 
@@ -291,13 +425,22 @@ void gen_expression(){
         if(tr.token_kind == ident){
             recode = table.take(tr.token);
             if(recode.kind == function){  // 関数呼び出し
-                printf("[F]");
-                while(1){
-                    if(strcmp(tr.token, ")") == 0)
-                        break;
-                    else
-                        tr.next_token();
+                printf("Call %s (", tr.token);
+                tr.next_token();
+                assert((char *)"(");
+                for(i=0; i<recode.argc; i++){
+                    tr.next_token();
+                    printf("\n Arg%d: ", i+1);
+                    gen_expression();
                 }
+                assert((char *)")");
+                printf("\n)\n");
+
+                inst.func = CAL;
+                inst.u.addr.level = recode.level;
+                inst.u.addr.addr = recode.addr;
+                code[code_index++] = inst;
+
                 is_opr_excepted = 1;
             }else if(recode.kind == variable){  // 変数
                 inst.func = LOD;
@@ -330,6 +473,13 @@ void gen_expression(){
     }
 }
 
+void gen_condition(){
+    assert((char *)"(");
+    gen_expression();
+    printf("%s\n", tr.token);
+    assert((char *)")");
+}
+
 void gen_statement(){
     if(strcmp(tr.token, "var") == 0){  // 変数宣言
         gen_variable();
@@ -337,10 +487,35 @@ void gen_statement(){
         gen_function();
     }else if(tr.token_kind == keyword){  // 予約式
         gen_reserved_statement();
+    }else if(strcmp(tr.token, "{") == 0){
+        gen_block();
+        assert((char *)"}");
     }else{
         gen_expression();
         printf("\n");
     }
+}
+
+void gen_block(){
+    printf("{\n");
+
+    assert((char *)"{");
+
+    // 引数などで既にレベルが上がってるので不要
+    while(true){
+        tr.next_token();
+        if((strcmp(tr.token, "}") == 0)) break;
+        if(tr.token_kind == keyword &&
+             tr.keyword_kind == stmt_return) break;
+
+        if(tr.token_kind == eof){
+            code[code_index++].func = END;
+            break;
+        }
+        gen_statement();
+    }
+
+    printf("}\n");
 }
 
 int main(int argc, char const *argv[]) {
@@ -350,6 +525,7 @@ int main(int argc, char const *argv[]) {
 
     while(true){
         tr.next_token();
+
         if(tr.token_kind == eof){
             code[code_index++].func = END;
             break;
@@ -358,11 +534,7 @@ int main(int argc, char const *argv[]) {
     }
 
     print_code(code);
-
     execute_code(code);
-
-
-    table.dump();
 
     return 0;
 }
