@@ -31,6 +31,8 @@ void TokenReader::forward_char(){
         line_index = -1;
     }
 }
+
+// keywordの定義
 keywordkind TokenReader::get_keyword_kind(char *token){
     keywordkind key = (keywordkind)-1;
 
@@ -55,21 +57,27 @@ keywordkind TokenReader::get_keyword_kind(char *token){
 
     return key;
 }
+
+// 数字の定義
 int TokenReader::is_number(char c){
     return '0' <= c && c <= '9';
 }
+
+// 名前の定義
 int TokenReader::is_ident(char c){
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
+
+// オペコードの定義
 int TokenReader::is_opcode(char c){
     switch (c) {
         case '=':  // "=" or "=="
         case '!':  // "!=" or "!"
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '%':
+        case '+':  // "+" or "+="
+        case '-':  // "-" or "-="
+        case '*':  // "*" or "*="
+        case '/':  // "/" or "/="
+        case '%':  // "%" or "%="
         case '|':  // "|" or "||"
         case '&':  // "&" or "&&"
         case '~':
@@ -133,16 +141,51 @@ void TokenReader::next_token(){
         token[i++] = next_char;
         forward_char();
         switch (cur_char) {
-            case '+':
-                opcode_kind = calc_add; break;
-            case '-':
-                opcode_kind = calc_sub; break;
-            case '*':
-                opcode_kind = calc_mul; break;
-            case '/':
-                opcode_kind = calc_div; break;
-            case '%':
-                opcode_kind = calc_mod; break;
+            case '+':  // "+" or "+="
+                if(next_char == '='){
+                    opcode_kind = assign_add;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = calc_add;
+                }
+                break;
+            case '-':  // "-" or "-="
+                if(next_char == '='){
+                    opcode_kind = assign_sub;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = calc_sub;
+                }
+                break;
+            case '*':  // "*" or "*="
+                if(next_char == '='){
+                    opcode_kind = assign_mul;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = calc_mul;
+                }
+                break;
+            case '/':  // "/" or "/="
+                if(next_char == '='){
+                    opcode_kind = assign_div;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = calc_div;
+                }
+                break;
+            case '%':  // "%" or "%="
+                if(next_char == '='){
+                    opcode_kind = assign_mod;
+                    token[i++] = next_char;
+                    forward_char();
+                }else{
+                    opcode_kind = calc_mod;
+                }
+                break;
             case '|':
                 if(next_char == '|'){
                     opcode_kind = logic_or;

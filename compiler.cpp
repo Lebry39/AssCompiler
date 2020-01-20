@@ -7,11 +7,15 @@
 #include "token_reader.hpp"
 #include "stackmachine.hpp"
 
+
 SymbolTable table;
 TokenReader tr;
 
 // 生成したコードを格納する
 instruction inst;
+instruction return_inst;
+int can_return = 0;
+
 instruction code[MAX_CODE];
 unsigned int code_index = 0;
 unsigned int code_sp = 0;
@@ -37,8 +41,8 @@ void gen_block();
 
 void assert(char *str){
     if(strcmp(str, tr.token) != 0){
-        printf("I hate '%s'\n", tr.token);
-        printf("\nError: Expected '%s'!!!", str);
+        printf("[Assert] I hate '%s'\n", tr.token);
+        printf("Error: Expected '%s' !", str);
         exit(1);
     }
 }
@@ -169,6 +173,11 @@ void gen_function(){
     func_recode.argc = argc;
     table.modify(&func_recode);
 
+    // return命令を生成
+    return_inst.func = RET;
+    return_inst.u.addr.level = table.get_level();
+    return_inst.u.addr.addr = argc;
+
     // 返りアドレス、ディスプレイ回復の領域を確保
     inst.func = INC;
     inst.u.value = 2;
@@ -177,26 +186,17 @@ void gen_function(){
 
     // { statements; }
     tr.next_token();
+    can_return = 1;
     gen_block();
+    can_return = 0;
 
-    printf(" RETURN: ");
-    if(tr.keyword_kind == stmt_return){
-        // 戻り値あり
-        tr.next_token();
-        gen_expression();
-    }else{
-        // 戻り値なし
+    if(code[code_index-1].func != RET){
+        // 最後にReturn命令が無い
         inst.func = LIT;
         inst.u.value = 0;
         code[code_index++] = inst;
+        code[code_index++] = return_inst;
     }
-
-    // サブルーチンを抜ける
-    inst.func = RET;
-    inst.u.addr.level = table.get_level();
-    inst.u.addr.addr = argc;
-    code[code_index++] = inst;
-
     table.out_block();
 
     // 定義を飛ばす
@@ -244,7 +244,6 @@ void gen_reserved_statement(){
         inst.func = JMP;
         code[else_inst_index] = inst;
 
-        tr.next_token();
         gen_block();
 
         // Nop を挟む
@@ -293,7 +292,6 @@ void gen_reserved_statement(){
         inst.func = JMP;
         code[jmp_inst_index] = inst;
 
-        tr.next_token();
         gen_block();
 
         // ループ条件へ戻る
@@ -304,6 +302,18 @@ void gen_reserved_statement(){
         // false時のジャンプアドレスを code_index に設定する
         code[jmp_inst_index].u.addr.addr = code_index;
 
+    }else if(tr.keyword_kind == stmt_return){
+        if(can_return){
+            printf(" Return: ");
+            tr.next_token();  // "return" を削除
+            gen_expression();
+            check_semicolon();
+            printf("\n");
+            code[code_index++] = return_inst;  // return 命令を挿入
+        }else{
+            printf("Error: You dont return the block.\n");
+            exit(1);
+        }
     }else{
         printf("Sorry!! '%s' is not yet supported !!\n", tr.token);
         exit(1);
@@ -323,7 +333,8 @@ void gen_expression(){
     int is_opr_excepted = 0;
 
     while (1) {
-        if(tr.token_kind == semicolon) break;
+        if(tr.token_kind == semicolon) break;  // end exoression
+        if(p_bias == 0 && strcmp(tr.token, ")") == 0) break;  // end condition
 
         // Generate Opcode
         if(tr.token_kind == opcode){
@@ -362,6 +373,69 @@ void gen_expression(){
                     }
                     inst.func = STO;
                     break;
+                case assign_add:
+                case assign_sub:
+                case assign_mul:
+                case assign_div:
+                case assign_mod:
+                    // sto Lv Ad, lod Lv Ad, opr [add, sub,...]
+                    if(code[code_index-1].func != LOD){
+                        printf("Error: Variable Excepted!!\n");
+                        exit(1);
+                    }
+
+                    inst = code[code_index-1];
+                    inst.func = STO;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = OPR;
+                    if(tr.opcode_kind == assign_add)      inst.u.opcode = ADD;
+                    else if(tr.opcode_kind == assign_sub) inst.u.opcode = SUB;
+                    else if(tr.opcode_kind == assign_mul) inst.u.opcode = MUL;
+                    else if(tr.opcode_kind == assign_div) inst.u.opcode = DIV;
+                    else if(tr.opcode_kind == assign_mod) inst.u.opcode = MOD;
+                    break;
+                case logic_not:
+                    // lit 0, opr eq
+                    inst.func = OPR;
+                    inst.u.opcode = EQ;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = LIT;
+                    inst.u.value = 0;
+                    break;
+                case logic_and:
+                    // lit 0, opr eq,  opr neq
+                    inst.func = OPR;
+                    inst.u.opcode = NEQ;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = OPR;
+                    inst.u.opcode = EQ;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = LIT;
+                    inst.u.value = 0;
+                    break;
+                case logic_or:
+                    // lit 0, opr neq, opr neq
+                    inst.func = OPR;
+                    inst.u.opcode = NEQ;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = OPR;
+                    inst.u.opcode = NEQ;
+                    oprstack[sp] = inst;
+                    priorities[sp++] = priority;
+
+                    inst.func = LIT;
+                    inst.u.value = 0;
+                    break;
                 case calc_add:
                     inst.func = OPR; inst.u.opcode = ADD; break;
                 case calc_sub:
@@ -396,28 +470,20 @@ void gen_expression(){
                     inst.func = OPR; inst.u.opcode = SHR; break;
                 case bit_not:
                     inst.func = OPR; inst.u.opcode = NOT; break;
-                // 論理演算はまだ実装してない
-                // case logic_not:
-                //     oprstack[sp] = SHL; break;
-                // case logic_and:
-                //     oprstack[sp] = SHR; break;
-                // case logic_or:
-                //     oprstack[sp] = NOT; break;
                 default:
-                    printf("%d is Not suported opcode!!!\n", tr.opcode_kind);
+                    printf("\n'%s' is Not suported opcode!!!\n", tr.token);
                     exit(1);
             }
 
             oprstack[sp] = inst;
-            priorities[sp] = priority;
-            sp++;
+            priorities[sp++] = priority;
 
             is_opr_excepted = 0;
             printf("%s ", tr.token);
 
             tr.next_token();
             continue;  // 次のトークンへ
-        }else if(is_opr_excepted && (strcmp(tr.token, ")") == 0 || strcmp(tr.token, ",") == 0)){
+        }else if(is_opr_excepted && strcmp(tr.token, ")") != 0){
             break;
         }
 
@@ -428,10 +494,21 @@ void gen_expression(){
                 printf("Call %s (", tr.token);
                 tr.next_token();
                 assert((char *)"(");
+
                 for(i=0; i<recode.argc; i++){
+                    if(strcmp(tr.token, "(") == 0 || strcmp(tr.token, ",") == 0){
+                        tr.next_token();
+                        printf("\n Arg%d: ", i+1);
+                        gen_expression();
+                    }else{
+                        printf("\nError: Too few arguments. Need %d args.\n", recode.argc);
+                        exit(1);
+                    }
+                }
+
+                // 引数が無い
+                if(recode.argc == 0){
                     tr.next_token();
-                    printf("\n Arg%d: ", i+1);
-                    gen_expression();
                 }
                 assert((char *)")");
                 printf("\n)\n");
@@ -475,9 +552,13 @@ void gen_expression(){
 
 void gen_condition(){
     assert((char *)"(");
+    tr.next_token();
+
     gen_expression();
     printf("%s\n", tr.token);
+
     assert((char *)")");
+    tr.next_token();
 }
 
 void gen_statement(){
@@ -497,16 +578,14 @@ void gen_statement(){
 }
 
 void gen_block(){
-    printf("{\n");
 
     assert((char *)"{");
+    printf("{\n");
 
     // 引数などで既にレベルが上がってるので不要
     while(true){
         tr.next_token();
         if((strcmp(tr.token, "}") == 0)) break;
-        if(tr.token_kind == keyword &&
-             tr.keyword_kind == stmt_return) break;
 
         if(tr.token_kind == eof){
             code[code_index++].func = END;
@@ -515,6 +594,7 @@ void gen_block(){
         gen_statement();
     }
 
+    assert((char *)"}");
     printf("}\n");
 }
 

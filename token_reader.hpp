@@ -16,6 +16,13 @@ typedef enum tokenkind {
 typedef enum opcodekind {
     /* Low Priority */
     assign,     // "="
+
+    assign_add, // "+="
+    assign_sub, // "-="
+    assign_mul, // "*="
+    assign_div, // "/="
+    assign_mod, // "%="
+
     equal,      // "=="
     not_equal,  // "!="
     grt,        // ">"
