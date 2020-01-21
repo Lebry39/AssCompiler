@@ -11,11 +11,12 @@
 SymbolTable table;
 TokenReader tr;
 
-// 生成したコードを格納する
+// 命令の一時保管場所
 instruction inst;
 instruction return_inst;
 int can_return = 0;
 
+// 生成したコードを格納する
 instruction code[MAX_CODE];
 unsigned int code_index = 0;
 unsigned int code_sp = 0;
@@ -23,11 +24,6 @@ unsigned int code_sp = 0;
 // 宣言した変数の管理
 int stack_top = 0;
 
-/*  elseif chain を繋いでいたか
-    繋いでいると、先読みされている状態となるので
-    次のtr.next_token()は実行してはいけない
-*/
-int was_if_stmt = 0;
 
 void gen_statement();
 void gen_variable();

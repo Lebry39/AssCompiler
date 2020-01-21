@@ -31,13 +31,22 @@ f関数では変数aを宣言しているとする。
 のように呼び出すことになる。
 
 # 命令2
-LIT, INC, JMP, JPC,
+LIT value :スタックへ値をPush  
+INC value :spをvalue進める  
+JMP addr  :addrをipへ代入  
+JPC addr  :スタック最上位が0でないとき、addrをipへ代入  
 
 # 命令3
-OPR
+OPR xxx
+```
+ADD, SUB, MUL, DIV, MOD,        // 演算
+OR, AND, NOT, XOR, SHR, SHL,    // ビット演算
+EQ, NEQ, LT, LE, GT, GE, ODD,   // 条件
+WRT, WRL                        // printf
+```
 
 # 命令4
-CPY,
-NOP,
-IGN,
-END
+CPY value: スタックの最上位をvalue回Push  
+NOP      : 何もしない  
+IGN      : 完全に無視される  
+END      : プログラムを終了する  
