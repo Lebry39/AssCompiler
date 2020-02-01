@@ -79,9 +79,32 @@ void execute_code(instruction *code){
                 // Push
                 stack[sp++] = stack[disp[ireg.u.addr.level] + ireg.u.addr.addr];
                 break;
+            case LBI:
+                // Push by index
+                if(stack[sp-1] < 0){
+                    printf("Error: Index is must be greater than or equeal 0 !!\n");
+                    exit(1);
+                }else if((disp[ireg.u.addr.level] + ireg.u.addr.addr + stack[sp-1]) >= sp){
+                    printf("Error: Too big Index!!\n");
+                    exit(1);
+                }
+                stack[sp-1] = stack[disp[ireg.u.addr.level] + ireg.u.addr.addr + stack[sp-1]];
+                break;
             case STO:
                 // Pop
                 stack[disp[ireg.u.addr.level] + ireg.u.addr.addr] = stack[--sp];
+                break;
+            case SBI:
+                // Pop by index
+                if(stack[sp-1] < 0){
+                    printf("Error: Index is must be greater than or equeal 0 !!\n");
+                    exit(1);
+                }else if((disp[ireg.u.addr.level] + ireg.u.addr.addr + stack[sp-2]) >= sp){
+                    printf("Error: Too big Index!!\n");
+                    exit(1);
+                }
+                stack[disp[ireg.u.addr.level] + ireg.u.addr.addr + stack[sp-2]] = stack[sp-1];
+                sp -= 2;  // delete value and Offset
                 break;
             case CAL:
                 // Call
@@ -117,7 +140,6 @@ void execute_code(instruction *code){
                     ip = ireg.u.addr.addr;
                 }
                 continue;
-
             case OPR:
                 switch (ireg.u.opcode) {
                     // 四則演算
@@ -219,7 +241,9 @@ void print_code(instruction *code){
             case CPY: printf("cpy"); break;
             case NOP: printf("nop"); break;
             case LOD: printf("lod"); break;
+            case LBI: printf("lbi"); break;
             case STO: printf("sto"); break;
+            case SBI: printf("sbi"); break;
             case CAL: printf("cal"); break;
             case RET: printf("ret"); break;
             case LIT: printf("lit"); break;
@@ -237,7 +261,9 @@ void print_code(instruction *code){
         if(ireg.func != OPR){
             switch (ireg.func) {
                 case LOD:
+                case LBI:
                 case STO:
+                case SBI:
                 case CAL:
                 case RET:
                     printf("%d, %d", ireg.u.addr.level, ireg.u.addr.addr);
@@ -371,8 +397,12 @@ instruction line_to_inst(char *line){
     // 命令
     if(strcmp("LOD", func) == 0){
         inst.func = LOD;
+    }else if(strcmp("LBI", func) == 0){
+        inst.func = LBI;
     }else if(strcmp("STO", func) == 0){
         inst.func = STO;
+    }else if(strcmp("SBI", func) == 0){
+        inst.func = SBI;
     }else if(strcmp("CAL", func) == 0){
         inst.func = CAL;
     }else if(strcmp("RET", func) == 0){
@@ -448,7 +478,9 @@ instruction line_to_inst(char *line){
         if(a[0] != '\0'){
             switch (inst.func) {
                 case LOD:
+                case LBI:
                 case STO:
+                case SBI:
                 case CAL:
                 case RET:
                     if(b[0] != '\0'){

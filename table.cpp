@@ -71,6 +71,7 @@ void SymbolTable::modify(def_recode *recode){
         if(strcmp(target->name, recode->name) == 0){  // 見つけた
             target->addr = recode->addr;
             target->argc = recode->argc;
+            target->kind = recode->kind;
             return;
         }
 
@@ -81,6 +82,7 @@ void SymbolTable::modify(def_recode *recode){
             if(strcmp(target->name, recode->name) == 0){  // 見つけた
                 target->addr = recode->addr;
                 target->argc = recode->argc;
+                target->kind = recode->kind;
                 return;
             }
         }

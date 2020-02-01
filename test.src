@@ -1,13 +1,9 @@
-def fibo(n) {
-    if(n <= 1){
-        return n;
-    }else{
-        return fibo(n - 2) + fibo(n - 1);
-    }
-}
+var a[3], b[3], i = 0;
 
-var i = 0;
-while(i < 100){
-    println fibo(i+1);
+a[0]=2; a[1]=2; a[2]=2;
+b[0]=3; b[1]=5; b[2]=7;
+
+while(i < 3){
+    println a[i] * b[i];
     i += 1;
 }

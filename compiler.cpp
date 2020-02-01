@@ -69,8 +69,33 @@ void gen_variable(){
         }
         tr.next_token();
 
-        // 宣言とともに代入
-        if(tr.token_kind == opcode && tr.opcode_kind == assign){
+        // 配列
+        if(strcmp(tr.token, "[") == 0){
+            tr.next_token();
+
+            if(tr.token_kind != number){
+                printf("Error: expected number\n");
+                exit(1);
+            }
+            int array_len = atoi(tr.token);
+            recode.length = array_len;
+            recode.kind = array;
+            table.modify(&recode);
+
+            tr.next_token();
+            assert((char *)"]");
+            tr.next_token();
+
+            printf("[%d]", array_len);
+
+            inst.func = INC;
+            inst.u.value = array_len;
+            code[code_index++] = inst;
+
+            stack_top += array_len - 1;
+
+            // 宣言とともに代入
+        }else if(tr.token_kind == opcode && tr.opcode_kind == assign){
             // 宣言した領域を空ける
             if(n > 0){
                 inst.func = INC;
@@ -274,7 +299,7 @@ void gen_reserved_statement(){
         unsigned int jmp_inst_index;
         unsigned int condition_index = code_index;
 
-        printf("WHILE: ");
+        printf("WHILE: (");
         tr.next_token();
         gen_condition();
 
@@ -363,11 +388,14 @@ void gen_expression(){
                 case assign:
                     // "変数をload" を、"変数にwrite" に書き換える
                     inst = code[--code_index];
-                    if(inst.func != LOD){
+                    if(inst.func == LOD){
+                        inst.func = STO;
+                    }else if(inst.func == LBI){
+                        inst.func = SBI;
+                    }else{
                         printf("Error: Variable Excepted!!\n");
                         exit(1);
                     }
-                    inst.func = STO;
                     break;
                 case assign_add:
                 case assign_sub:
@@ -375,15 +403,28 @@ void gen_expression(){
                 case assign_div:
                 case assign_mod:
                     // sto Lv Ad, lod Lv Ad, opr [add, sub,...]
-                    if(code[code_index-1].func != LOD){
+                    if(code[code_index-1].func == LOD){
+                        inst = code[code_index-1];
+                        inst.func = STO;
+                        oprstack[sp] = inst;
+                        priorities[sp++] = priority;
+                    }else if(code[code_index-1].func == LBI){
+                        // idx, cpy, lbi, (exp), sbi
+                        code[code_index] = code[code_index-1];
+
+                        inst.func = CPY;
+                        inst.u.value = 1;
+                        code[code_index-1] = inst;
+                        code_index++;
+
+                        inst = code[code_index-1];
+                        inst.func = SBI;
+                        oprstack[sp] = inst;
+                        priorities[sp++] = priority;
+                    }else{
                         printf("Error: Variable Excepted!!\n");
                         exit(1);
                     }
-
-                    inst = code[code_index-1];
-                    inst.func = STO;
-                    oprstack[sp] = inst;
-                    priorities[sp++] = priority;
 
                     inst.func = OPR;
                     if(tr.opcode_kind == assign_add)      inst.u.opcode = ADD;
@@ -520,8 +561,26 @@ void gen_expression(){
                 inst.u.addr.level = recode.level;
                 inst.u.addr.addr = recode.addr;
                 code[code_index++] = inst;
+
+                is_opr_excepted = 1;
+            }else if(recode.kind == array){  // 配列
+                printf("%s", tr.token);
+                tr.next_token();
+
+                // set Offset
+                assert((char *)"[");
+                printf("[");
+                tr.next_token();
+                gen_expression();
+                assert((char *)"]");
+
+                inst.func = LBI;
+                inst.u.addr.level = recode.level;
+                inst.u.addr.addr = recode.addr;
+                code[code_index++] = inst;
+
+                is_opr_excepted = 1;
             }
-            is_opr_excepted = 1;
         }else if(tr.token_kind == number){  // 定数
             inst.func = LIT;
             inst.u.value = atoi(tr.token);

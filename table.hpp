@@ -8,6 +8,7 @@ typedef enum defkind{
     undefined,
     function,
     variable,
+    array,
     constant
 } defkind;
 
@@ -18,6 +19,8 @@ struct def_recode{
 
     int addr;   // 相対アドレス
     int argc;   // 関数の引数の数
+
+    int length;  // Array's index count
 
     int next_index;  // 次のインデックス
 };

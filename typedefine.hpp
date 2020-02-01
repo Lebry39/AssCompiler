@@ -7,7 +7,7 @@
 
 // 命令の定義
 enum functype {
-    LOD, STO, CAL, RET,  // Func, Level, Locate
+    LOD, LBI, STO, SBI, CAL, RET,  // Func, Level, Locate
     LIT, INC, JMP, JPC,  // Func, Value
     OPR,    // OPR, oprtype
     CPY,    // CPY num
