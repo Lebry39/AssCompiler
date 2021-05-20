@@ -4,6 +4,13 @@
 # 実行方法
 Makefileを実行して実行すると「test.src」が実行される。
 
+```console
+$ make
+$ vi test.crc  # programming
+$ ./a.out
+```
+
+
 # 記述
 変数は整数型のみ、宣言は`var`を使用する。
 なお、配列の宣言では整数値のみ使用可能。
